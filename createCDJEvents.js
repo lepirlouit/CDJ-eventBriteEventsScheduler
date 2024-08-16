@@ -20,15 +20,24 @@ const dates = [
   "2025-06-14",
 ].splice(0, 1);
 
+/**
+ * 
+ * @param {string} date 
+ * @returns {string}
+ */
 const getNextEventId = async (date) => {
   try {
-    return await eventBriteClient.copyEvent({
+    const newEventId =  await eventBriteClient.copyEvent({
       endDate: `${date}T${endTime}:00.000Z`,
-      name: `CoderDojo Forest (Bruxelles) ${"------"}`,
+      name: `CoderDojo Forest (Bruxelles) TO_BE_REMOVED`,
       originalEventId: ORIGINAL_EVENT_ID,
       startDate: `${date}T${startTime}:00.000Z`,
     });
-    //TODO : updateEventName
+    await eventBriteClient.updateEventName({
+      eventId: newEventId,
+      name: `CoderDojo Forest (Bruxelles) ${new Intl.DateTimeFormat('fr-BE').format(new Date(date))}`,
+    });
+    return newEventId;
   } catch (error) {
     if (error.name === "INTERNAL_ERROR - The server encountered an internal error.") {
       //TODO : remove eventWith Temp name
