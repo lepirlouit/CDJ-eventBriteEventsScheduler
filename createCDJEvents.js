@@ -18,7 +18,7 @@ const dates = [
   "2025-04-12",
   "2025-05-24",
   "2025-06-14",
-].splice(0, 1);
+];
 
 /**
  * 
@@ -39,30 +39,26 @@ const getNextEventId = async (date) => {
     });
     return newEventId;
   } catch (error) {
+    console.log(`\tCopy event failed [${error.name}]`);
     if (error.name === "INTERNAL_ERROR - The server encountered an internal error.") {
+      console.log("\t\tRetry copy event")
       //TODO : remove eventWith Temp name
       return getNextEventId(date);
     }
+    throw error;
   }
 }
 
 
 const main = async () => {
-  // const toDay = new Date();
-  // const timeZoneOffsetInMilliSeconds = toDay.getTimezoneOffset() * 60 * 1000;
-  // const tLocal = toDay + timeZoneOffsetInMilliSeconds;
-
-  const toDay = new Date();
-
   for (let [index, date] of dates.entries()) {
-    const previousEventDate = dates[index - 1] || toDay.toISOString().substring(0, 10);
-    // console.log(`${startDateTime} - ${endDateTime}`)
+    console.log("Next CoderDojo : ", date);
+    const previousEventDate = dates[index - 1] || new Date().toISOString().substring(0, 10);
     const newEventId = await getNextEventId(date);
     // const newEventId = "995899932507"; //TODO : to be removed
     const ticketClasses = (await eventBriteClient.listTicketClassesByEvent(newEventId)).ticket_classes;
     for (const ticketClass of ticketClasses) {
-      // console.log(ticketClass);
-      // console.log(`${ticketClass.sales_start} - ${ticketClass.sales_end}`);
+      console.log("\tUpdate ticket class :", ticketClass.id, ticketClass.name);
       await eventBriteClient.updateTicketClass({
         eventId: newEventId,
         ticketClassId: ticketClass.id,
@@ -72,11 +68,11 @@ const main = async () => {
     }
     const publishDate = `${previousEventDate}T${endTime}:00.000Z`;
     const TEN_MINUTES_IN_MICROSECONDS = 10 * 60 * 1000;
-    console.log({ publishDate: localDateTimeToUTC(publishDate), toDay: new Date() })
-    console.log("diff : ", localDateTimeToUTC(publishDate).valueOf() - new Date().valueOf());
     if ((localDateTimeToUTC(publishDate).valueOf() - new Date().valueOf()) < TEN_MINUTES_IN_MICROSECONDS) {
+      console.log("\tpublish now");
       await eventBriteClient.publishEvent({ eventId: newEventId });
     } else {
+      console.log("\tpublish date :", localDateTimeToUTC(publishDate));
       await eventBriteClient.schedulePublishDate({ eventId: newEventId, schedulePublishDate: publishDate });
     }
   }
