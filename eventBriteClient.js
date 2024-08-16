@@ -1,11 +1,9 @@
-const localDateTimeToUTC = (dateStr) => {
-  const date = new Date(dateStr);
-  const timeZoneOffsetInMilliSeconds = date.getTimezoneOffset() * 60 * 1000;
-  return new Date(date.valueOf() + timeZoneOffsetInMilliSeconds);
-}
-const dateToDateStr = (date) =>
-  localDateTimeToUTC(date).toISOString().replace(/\.000/, '');
-
+const { dateToDateStr } = require('./dateUtils');
+/**
+ * 
+ * @param {{originalEventId: string, name: string, startDate: string, endDate: string}} 
+ * @returns 
+ */
 module.exports.copyEvent = async ({ originalEventId, name, startDate, endDate }) => {
   const response = await fetch(`https://www.eventbriteapi.com/v3/events/${originalEventId}/copy/`, {
     method: 'POST',
@@ -75,3 +73,56 @@ module.exports.updateTicketClass = async ({ eventId, ticketClassId, salesStart, 
 
   throw new Error(`${data.error} - ${data.error_description}`)
 }
+/**
+ * 
+ * @param {{eventId: string, schedulePublishDate: string}} 
+ * @returns 
+ */
+module.exports.schedulePublishDate = async ({ eventId, schedulePublishDate }) => {
+  console.log({
+    schedulePublishDate: dateToDateStr(schedulePublishDate),
+  });
+  const response = await fetch(`https://www.eventbriteapi.com/v3/events/${eventId}/publish_settings/`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.EVENTBRITE_Private_token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      publish_settings: {
+        schedule_publish_date: dateToDateStr(schedulePublishDate),
+      }
+    }),
+  });
+  const data = await response.json();
+  if (response.ok) {
+    return;
+  }
+
+  throw new Error(`${data.error} - ${data.error_description}`)
+}
+
+
+/**
+ * 
+ * @param {{eventId: string}}
+ * @returns 
+ */
+module.exports.publishEvent = async ({ eventId }) => {
+  const response = await fetch(`https://www.eventbriteapi.com/v3/events/${eventId}/publish/`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.EVENTBRITE_Private_token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+  const data = await response.json();
+  if (response.ok) {
+    return;
+  }
+
+  throw new Error(`${data.error} - ${data.error_description}`)
+}
+
+
+

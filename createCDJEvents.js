@@ -1,8 +1,11 @@
 require('dotenv').config();
 
+const { localDateTimeToUTC } = require('./dateUtils');
 const eventBriteClient = require("./eventBriteClient");
 
 const ORIGINAL_EVENT_ID = "780148654627"; //CoderDojo Forest (Bruxelles) - 08/06/2024
+const startTime = "10:00";
+const endTime = "13:00";
 
 const dates = [
   "2024-09-21",
@@ -17,6 +20,22 @@ const dates = [
   "2025-06-14",
 ].splice(0, 1);
 
+const getNextEventId = async (date) => {
+  try {
+    return await eventBriteClient.copyEvent({
+      endDate: `${date}T${endTime}:00.000Z`,
+      name: `CoderDojo Forest (Bruxelles) ${"------"}`,
+      originalEventId: ORIGINAL_EVENT_ID,
+      startDate: `${date}T${startTime}:00.000Z`,
+    });
+    //TODO : updateEventName
+  } catch (error) {
+    if (error.name === "INTERNAL_ERROR - The server encountered an internal error.") {
+      //TODO : remove eventWith Temp name
+      return getNextEventId(date);
+    }
+  }
+}
 
 
 const main = async () => {
@@ -24,20 +43,13 @@ const main = async () => {
   // const timeZoneOffsetInMilliSeconds = toDay.getTimezoneOffset() * 60 * 1000;
   // const tLocal = toDay + timeZoneOffsetInMilliSeconds;
 
-  const startTime = "10:00";
-  const endTime = "13:00";
   const toDay = new Date();
 
   for (let [index, date] of dates.entries()) {
     const previousEventDate = dates[index - 1] || toDay.toISOString().substring(0, 10);
     // console.log(`${startDateTime} - ${endDateTime}`)
-    // const newEventId = await eventBriteClient.copyEvent({
-    //   endDate: `${date}T${endTime}:00.000Z`,
-    //   name: `CoderDojo Forest (Bruxelles) ${"------"}`,
-    //   originalEventId: ORIGINAL_EVENT_ID,
-    //   startDate: `${date}T${startTime}:00.000Z`,
-    // });
-    const newEventId = "995899932507"; //TODO : to be removed
+    const newEventId = await getNextEventId(date);
+    // const newEventId = "995899932507"; //TODO : to be removed
     const ticketClasses = (await eventBriteClient.listTicketClassesByEvent(newEventId)).ticket_classes;
     for (const ticketClass of ticketClasses) {
       // console.log(ticketClass);
@@ -48,7 +60,15 @@ const main = async () => {
         salesStart: `${previousEventDate}T${endTime}:00.000Z`,
         salesEnd: `${date}T${endTime}:00.000Z`,
       });
-
+    }
+    const publishDate = `${previousEventDate}T${endTime}:00.000Z`;
+    const TEN_MINUTES_IN_MICROSECONDS = 10 * 60 * 1000;
+    console.log({ publishDate: localDateTimeToUTC(publishDate), toDay: new Date() })
+    console.log("diff : ", localDateTimeToUTC(publishDate).valueOf() - new Date().valueOf());
+    if ((localDateTimeToUTC(publishDate).valueOf() - new Date().valueOf()) < TEN_MINUTES_IN_MICROSECONDS) {
+      await eventBriteClient.publishEvent({ eventId: newEventId });
+    } else {
+      await eventBriteClient.schedulePublishDate({ eventId: newEventId, schedulePublishDate: publishDate });
     }
   }
 }
