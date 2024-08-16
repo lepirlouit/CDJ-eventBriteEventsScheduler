@@ -29,6 +29,7 @@ const getNextEventId = async (date) => {
   try {
     const newEventId =  await eventBriteClient.copyEvent({
       endDate: `${date}T${endTime}:00.000Z`,
+      // copy event is created with temp name, because sometime it fail and doesn't copy the full event
       name: `CoderDojo Forest (Bruxelles) TO_BE_REMOVED`,
       originalEventId: ORIGINAL_EVENT_ID,
       startDate: `${date}T${startTime}:00.000Z`,
