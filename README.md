@@ -1,6 +1,16 @@
 # eventbritenode
 
-> ## Install dependencies
+## Config
+
+Login to eventbrite and get you private api key from [Account Settings / Developer Links / API Keys](https://www.eventbrite.be/account-settings/apps)
+
+Create .env file and set variable `EVENTBRITE_Private_token=<eventbrite_private_token_value>`
+
+Je private token is geheim, deel deze met niemand !
+
+Look in the code of `createCDJEvents.js` Set your dojo's dates 
+
+## Install dependencies
 
 Install with [npm](https://www.npmjs.com/)
 
