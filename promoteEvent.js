@@ -24,6 +24,8 @@ const main = async () => {
   const dateShort = new Intl.DateTimeFormat('fr-BE').format(new Date(event.start.utc)); // dd/MM/YYYY
   const dateLong = new Intl.DateTimeFormat('fr-BE', {dateStyle: 'full'}).format(new Date(event.start.utc)); // '21 septembre 2024'
   const dateFull = new Intl.DateTimeFormat('fr-BE', { dateStyle: 'full' }).format(new Date(event.start.utc)); // samedi 21 septembre 2024
+  const fileName = new Intl.DateTimeFormat('en-CA').format(new Date(event.start.utc)); 
+  
   const eventUrl = `https://www.eventbrite.be/e/${event.id}`;
   const name = `CoderDojo 1190 Forest - ${dateShort} Email Campaign`;
   const subject = `Ne manquez pas ce nouvel événement de CoderDojoBelgium 1190 Forest - ${dateFull}`;
@@ -34,8 +36,15 @@ const main = async () => {
     dateLong,
     eventUrl,
   });
+  console.log("Campaign name :", name);
+  console.log("subject :", subject);
+
+  const path = `./campaignBodyTemplate-${fileName}.html`;
+  fs.writeFileSync(path, bodyMessage);
+  console.log("path :", path);
+
   // update dates in title (X2) and content (X2/3)
-  await eventBriteClient.updateCampaign({ campaignId: campaignCopy.id, name, subject, bodyMessage });
+  // await eventBriteClient.updateCampaign({ campaignId: campaignCopy.id, name, subject, bodyMessage });
   // ask if need to add/enrich list with emails of previous event
   // if yes, list previous events (default is latest)
   // Ask for schedule the campain or to send now
