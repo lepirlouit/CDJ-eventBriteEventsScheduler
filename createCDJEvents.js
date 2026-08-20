@@ -7,25 +7,32 @@ const ORIGINAL_EVENT_ID = "780148654627"; //CoderDojo Forest (Bruxelles) - 08/06
 const startTime = "10:00";
 const endTime = "13:00";
 
+// date of the last event already created on Eventbrite, used as sales start / publish
+// date for the first date below. Set to null when starting a fresh season.
+const LAST_CREATED_EVENT_DATE = null;
+
 const dates = [
-  "2024-09-21",
-  "2024-10-26",
-  "2024-11-09",
-  "2024-12-14",
-  "2025-01-11",
-  "2025-02-08",
-  "2025-03-08",
-  "2025-04-12",
-  "2025-05-24",
-  "2025-06-14",
+  "2026-09-12",
+  "2026-10-17",
+  "2026-11-21",
+  "2026-12-19",
+  "2027-01-17", // zondag (speelzondag is in de namiddag)
+  "2027-02-13",
+  "2027-03-20",
+  "2027-04-10",
+  "2027-05-22",
+  "2027-06-12",
 ];
+
+const MAX_COPY_ATTEMPTS = 5;
 
 /**
  * 
  * @param {string} date 
+ * @param {number} [attempt]
  * @returns {string}
  */
-const getNextEventId = async (date) => {
+const getNextEventId = async (date, attempt = 1) => {
   try {
     const newEventId =  await eventBriteClient.copyEvent({
       endDate: `${date}T${endTime}:00.000Z`,
@@ -40,11 +47,13 @@ const getNextEventId = async (date) => {
     });
     return newEventId;
   } catch (error) {
-    console.log(`\tCopy event failed [${error.name}]`);
-    if (error.name === "INTERNAL_ERROR - The server encountered an internal error.") {
-      console.log("\t\tRetry copy event")
+    // eventBriteClient throws `new Error("<error> - <error_description>")`, so the
+    // eventbrite error code is in the message, not in the name
+    console.log(`\tCopy event failed [${error.message}]`);
+    if (error.message.startsWith("INTERNAL_ERROR") && attempt < MAX_COPY_ATTEMPTS) {
+      console.log(`\t\tRetry copy event (${attempt + 1}/${MAX_COPY_ATTEMPTS})`)
       //TODO : remove eventWith Temp name
-      return getNextEventId(date);
+      return getNextEventId(date, attempt + 1);
     }
     throw error;
   }
@@ -54,7 +63,7 @@ const getNextEventId = async (date) => {
 const main = async () => {
   for (let [index, date] of dates.entries()) {
     console.log("Next CoderDojo : ", date);
-    const previousEventDate = dates[index - 1] || new Date().toISOString().substring(0, 10);
+    const previousEventDate = dates[index - 1] || LAST_CREATED_EVENT_DATE || new Date().toISOString().substring(0, 10);
     const newEventId = await getNextEventId(date);
     // const newEventId = "995899932507"; //TODO : to be removed
     const ticketClasses = (await eventBriteClient.listTicketClassesByEvent(newEventId)).ticket_classes;
