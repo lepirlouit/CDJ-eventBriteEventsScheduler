@@ -25,6 +25,55 @@ Create CoderDojo Events
 node createCDJEvents.js
 ```
 
+### Promote an event by email
+
+`promoteEvent.js` duplicates a previous email campaign, retitles it for the next dojo,
+renders `campaignBodyTemplate.html` into it, attaches the event, and leaves a **draft**.
+It never sends - review the draft, then send it yourself.
+
+Sending is a separate, explicit call, because there is no send endpoint: delivery is the
+same POST as the save with `campaign.timezone` + `campaign.time_to_send` added.
+`saveCampaign` strips those two fields, so only `sendCampaign` can mail anyone:
+
+```sh
+# THIS MAILS THE WHOLE LIST AND CANNOT BE UNDONE
+node -e "require('dotenv').config();require('./eventBriteWebClient').sendCampaign({campaignId:'<id>'}).then(c=>console.log(c.status,JSON.stringify(c.time_to_send)))"
+```
+
+Omit `timeToSend` to go out within a few minutes (Eventbrite rounds the time up), or pass a
+UTC ISO string to schedule it. `unscheduleCampaign({campaignId})` cancels a pending send by
+writing `time_to_send: null`, but only works while the campaign is still updatable - a
+queued campaign briefly enters status 60 (`evaluating`/`review`), and in that state the API
+refuses to update *or* delete it. `deleteCampaign` only accepts drafts.
+
+Email campaigns are not in Eventbrite's public API, so `eventBriteWebClient.js` talks to
+the private API the organizer web UI itself uses. That one needs your browser session,
+not the private token:
+
+1. Log in to <https://www.eventbrite.be> and open the Email campaigns page.
+2. DevTools > Network, click any request to `www.eventbrite.be/api/v3/...`
+3. Request Headers > Cookie > right-click > Copy value.
+   (Not `document.cookie` in the console - the `session` cookie is HttpOnly and would be
+   missing.)
+4. Put it in `.env` on one line, single-quoted:
+   `EVENTBRITE_WEB_COOKIE='csrftoken=...; session=...; ...'`
+
+This cookie is a full session credential; it expires when you log out or after a while,
+and then the script will tell you to re-copy it.
+
+```sh
+node promoteEvent.js                     # duplicate, retitle, attach the event, stop at a draft
+node promoteEvent.js --import            # also add the previous event's attendees to the list
+node promoteEvent.js --no-attach-event   # leave the event unattached
+```
+
+Note the campaign body (`campaignBodyTemplate.html`) may only use a restricted subset of
+HTML: `<p> <br> <ul> <li> <strong> <em> <a href> <div>`. `<hr>` and `target="_blank"` are
+rejected as `INVALID_HTML`, and 4-byte emoji (📍 👉 🎉 📅) cannot be stored at all - use
+3-byte symbols such as `● ➡ ★ ▶ ℹ️` instead.
+
+Each run creates a new `(copy N)` draft, so delete the ones you do not keep.
+
 ## Running tests
 
 Install dev dependencies:
