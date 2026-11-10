@@ -23,29 +23,32 @@ module.exports.listYourOrganizations = async () => {
  * eventBriteWebClient.listOrganizationEvents when you need those filters honoured.
  */
 module.exports.listEventsByOrganization = async ({ organizationId, status, timeFilter }) => {
-  const queryString = new URLSearchParams({
-    show_series_parent: true,
-    order_by: "start_asc",
-    page: 1,
-    page_size: 20,
-    app_name: "events-workspace",
-    status,
-    time_filter: timeFilter,
-  }).toString();
-  const response = await fetch(`https://www.eventbriteapi.com/v3/organizations/${organizationId}/events/${queryString ? '?' : ''}${queryString}`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${process.env.EVENTBRITE_Private_token}`,
-      'Content-Type': 'application/json'
-    },
-  });
-  const data = await response.json();
-  if (response.ok) {
-    // const { id: eventId } = data;
-    return data.events;
-  }
-
-  throw new Error(`${data.error} - ${data.error_description}`);
+  const events = [];
+  let continuation;
+  do {
+    const url = new URL(`v3/organizations/${organizationId}/events/`, 'https://www.eventbriteapi.com/');
+    url.search = new URLSearchParams({
+      order_by: "start_asc",
+      page_size: 50,
+      status,
+      time_filter: timeFilter,
+      ...(continuation && { continuation }),
+    });
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${process.env.EVENTBRITE_Private_token}`,
+        'Content-Type': 'application/json'
+      },
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(`${data.error} - ${data.error_description}`);
+    }
+    events.push(...data.events);
+    continuation = data.pagination.has_more_items ? data.pagination.continuation : undefined;
+  } while (continuation);
+  return events;
 }
 
 /**

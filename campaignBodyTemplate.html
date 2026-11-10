@@ -23,16 +23,9 @@ Au programme :<br>
 
 <p><strong>▶ Toutes les dates à venir :</strong></p>
 <ul>
-  <li>12 septembre 2026</li>
-  <li>17 octobre 2026</li>
-  <li>21 novembre 2026</li>
-  <li>19 décembre 2026</li>
-  <li>17 janvier 2027 <em>(dimanche exceptionnel)</em></li>
-  <li>13 février 2027</li>
-  <li>20 mars 2027</li>
-  <li>10 avril 2027</li>
-  <li>22 mai 2027</li>
-  <li>12 juin 2027</li>
+  {{#each upcomingDates}}
+  <li>{{date}}{{#if exceptionalDay}} <em>({{exceptionalDay}} exceptionnel)</em>{{/if}}</li>
+  {{/each}}
 </ul>
 
 <p>

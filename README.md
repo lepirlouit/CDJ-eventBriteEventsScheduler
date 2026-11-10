@@ -72,7 +72,9 @@ HTML: `<p> <br> <ul> <li> <strong> <em> <a href> <div>`. `<hr>` and `target="_bl
 rejected as `INVALID_HTML`, and 4-byte emoji (📍 👉 🎉 📅) cannot be stored at all - use
 3-byte symbols such as `● ➡ ★ ▶ ℹ️` instead.
 
-Each run creates a new `(copy N)` draft, so delete the ones you do not keep.
+Re-running reuses the draft already named for that event instead of creating a new
+`(copy N)`, and refuses to touch a campaign of that name that was already scheduled or sent.
+The list of upcoming dates in the body is generated from the published and draft events.
 
 ## Running tests
 

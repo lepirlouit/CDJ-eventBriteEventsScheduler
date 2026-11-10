@@ -175,11 +175,16 @@ module.exports.getMissiveSettings = async ({ organizationId }) =>
   request({ path: `/missive/organization/${organizationId}/settings/` });
 
 /**
- * @param {{organizationId: string, page?: number, pageSize?: number, sortBy?: string}}
+ * @param {{organizationId: string, nameContains?: string, page?: number, pageSize?: number, sortBy?: string}}
  * @returns {Promise<object[]>}
  */
-module.exports.listCampaigns = async ({ organizationId, page = 1, pageSize = 10, sortBy = 'created_desc' }) => {
-  const queryString = new URLSearchParams({ page, page_size: pageSize, sort_by: sortBy }).toString();
+module.exports.listCampaigns = async ({ organizationId, nameContains, page = 1, pageSize = 10, sortBy = 'created_desc' }) => {
+  const queryString = new URLSearchParams({
+    page,
+    page_size: pageSize,
+    sort_by: sortBy,
+    ...(nameContains && { name_contains: nameContains }),
+  }).toString();
   const data = await request({ path: `/organizations/${organizationId}/missive/campaigns/?${queryString}` });
   return data.campaigns;
 }

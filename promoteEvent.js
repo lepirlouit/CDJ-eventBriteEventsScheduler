@@ -10,6 +10,7 @@ const CAMPAIGN_TO_DUPPLICATE = "46155743"; // CoderDojo 1190 Forest - 08/03/2025
 // organization and cannot be undone from here, so it is opt-in.
 const IMPORT_PREVIOUS_ATTENDEES = process.argv.includes("--import");
 const ATTACH_EVENT = !process.argv.includes("--no-attach-event");
+const TIME_ZONE = "Europe/Brussels";
 
 const main = async () => {
   const organizations = await eventBriteClient.listYourOrganizations();
@@ -48,6 +49,20 @@ const main = async () => {
   });
   console.log("Previous event   :", previousEvent.id, previousEvent.name.text, previousEvent.start.local);
 
+  // Public API on purpose: drafts (events whose publication is scheduled) must be listed too.
+  const upcomingEvents = (await eventBriteClient.listEventsByOrganization({ organizationId: organization.id, status: "all", timeFilter: "current_future" }))
+    .filter((upcoming) => ["live", "started", "draft"].includes(upcoming.status))
+    .filter((upcoming) => upcoming.start.utc >= event.start.utc)
+    .filter((upcoming) => !upcoming.name.text.includes("TO_BE_REMOVED"));
+  const weekday = (date) => new Intl.DateTimeFormat('fr-BE', { weekday: 'long', timeZone: TIME_ZONE }).format(date);
+  const upcomingDates = upcomingEvents.map((upcoming) => {
+    const start = new Date(upcoming.start.utc);
+    return {
+      date: new Intl.DateTimeFormat('fr-BE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: TIME_ZONE }).format(start),
+      exceptionalDay: weekday(start) === "samedi" ? undefined : weekday(start),
+    };
+  });
+
   const dateShort = new Intl.DateTimeFormat('fr-BE').format(new Date(event.start.utc)); // 08/03/2025
   const dateLong = new Intl.DateTimeFormat('fr-BE', { dateStyle: 'full' }).format(new Date(event.start.utc)); // samedi 8 mars 2025
   const fileName = new Intl.DateTimeFormat('en-CA').format(new Date(event.start.utc)); // 2025-03-08
@@ -56,21 +71,37 @@ const main = async () => {
   // purpose - read it rather than hardcoding it so nobody "fixes" it to fr_BE.
   const { locale } = await eventBriteWebClient.getMissiveSettings({ organizationId: organization.id });
 
-  // copy previous campaign
-  const campaign = await eventBriteWebClient.duplicateCampaign({ campaignId: CAMPAIGN_TO_DUPPLICATE, locale });
-  // logged before anything else can throw, so a later failure still leaves the id on screen
-  console.log("Draft campaign created :", campaign.id, `"${campaign.name}"`);
-
   const eventUrl = `https://www.eventbrite.be/e/${event.id}`;
   const name = `CoderDojo 1190 Forest - ${dateShort} Email Campaign`;
   const subject = `Ne manquez pas ce nouvel événement de CoderDojoBelgium 1190 Forest - ${dateLong}`;
 
+  // Re-running reuses the draft of a previous run instead of piling up "(copy N)" drafts.
+  const sameNameCampaigns = (await eventBriteWebClient.listCampaigns({ organizationId: organization.id, nameContains: name, pageSize: 50 }))
+    .filter((existing) => existing.name === name);
+  if (sameNameCampaigns.some((existing) => existing.status !== "draft")) {
+    throw new Error(`A campaign named "${name}" was already scheduled or sent (${sameNameCampaigns.map((existing) => `${existing.id} ${existing.status}`).join(", ")})`);
+  }
+  let campaign;
+  if (sameNameCampaigns.length > 0) {
+    campaign = await eventBriteWebClient.getCampaign({ campaignId: sameNameCampaigns[0].id });
+    console.log("Reusing draft campaign :", campaign.id, `"${campaign.name}"`);
+  } else {
+    campaign = await eventBriteWebClient.duplicateCampaign({ campaignId: CAMPAIGN_TO_DUPPLICATE, locale });
+    // logged before anything else can throw, so a later failure still leaves the id on screen
+    console.log("Draft campaign created :", campaign.id, `"${campaign.name}"`);
+  }
+
   const bodyMessageTemplate = fs.readFileSync("./campaignBodyTemplate.html").toString();
   const compiledTemplate = handlebars.compile(bodyMessageTemplate);
+  // Eventbrite's editor turns every newline of the HTML into a visible line break.
   const bodyMessage = compiledTemplate({
     dateLong,
     eventUrl,
-  });
+    upcomingDates,
+  })
+    .replace(/\s*\n\s*/g, " ")
+    .replace(/\s*(<\/?(?:p|br|ul|li|div)>)\s*/g, "$1")
+    .trim();
   console.log("Campaign name :", name);
   console.log("subject :", subject);
 
